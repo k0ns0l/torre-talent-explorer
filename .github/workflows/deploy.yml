@@ -1,0 +1,59 @@
+name: Deploy to GCP Cloud Run
+on:
+  push:
+    branches: [prod]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@v1
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          install_components: "beta"
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          extensions: mbstring, bcmath, xml, ctype, fileinfo, json, tokenizer, pdo, pdo_mysql, openssl
+
+      - name: Install Composer dependencies
+        run: composer install --no-interaction --prefer-dist --optimize-autoloader
+
+      - name: Copy .env from secrets
+        run: echo "${{ secrets.LARAVEL_ENV }}" > .env
+
+      - name: Generate Laravel key
+        run: php artisan key:generate --force
+
+      - name: Set permissions for storage and cache
+        run: chmod -R ug+w storage bootstrap/cache
+
+      - name: Install Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: "18"
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy torre-talent-explorer \
+            --source . \
+            --region us-central1 \
+            --allow-unauthenticated \
+            --project ${{ secrets.GCP_PROJECT_ID }}
+
+      - name: Verify Deployment
+        run: |
+          gcloud run services describe laravel-app \
+            --region=us-central1 \
+            --project ${{ secrets.GCP_PROJECT_ID }}
