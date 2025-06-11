@@ -27,6 +27,4 @@ RUN chown -R www-data: /app
 RUN cd /app && npm ci
 RUN cd /app && npm run build
 
-RUN mv /app/public/build/.vite/manifest.json /app/public/build/manifest.json
-
 CMD sh /app/docker/startup.sh
