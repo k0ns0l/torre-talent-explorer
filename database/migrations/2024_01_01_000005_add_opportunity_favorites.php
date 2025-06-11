@@ -18,7 +18,7 @@ return new class extends Migration
             $table->decimal('min_salary', 10, 2)->nullable();
             $table->decimal('max_salary', 10, 2)->nullable();
             
-            // Update unique constraint
+            $table->dropForeign(['user_id']);
             $table->dropUnique(['user_id', 'username']);
         });
         
