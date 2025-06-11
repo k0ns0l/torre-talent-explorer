@@ -4,13 +4,7 @@ sed -i "s,LISTEN_PORT,$PORT,g" /etc/nginx/nginx.conf
 
 cd /app
 
-mkdir -p \
-    storage/framework/views \
-    storage/framework/cache \
-    storage/framework/sessions \
-    storage/logs \
-    storage/app/public \
-    storage/app/private \
+mkdir -p storage/logs storage/framework/{cache,sessions,views} \
     bootstrap/cache \
     database
 
@@ -34,6 +28,11 @@ php artisan route:cache
 php artisan view:cache
 php artisan event:cache
 
+until mysql -h "$DB_HOST" -u "$DB_USERNAME" -p"$DB_PASSWORD" -e "SELECT 1" >/dev/null 2>&1; do
+  echo "⏳ Waiting for DB..."
+  sleep 2
+done
+echo "✅ DB is ready!"
 php artisan migrate --force
 
 php-fpm -D

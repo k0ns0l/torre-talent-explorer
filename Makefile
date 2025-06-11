@@ -11,25 +11,25 @@ down:
 	docker-compose down
 
 logs:
-	docker-compose logs -f app
+	docker-compose logs -f torre-talent-explorer-app
 
 shell:
-	docker-compose exec app sh
+	docker-compose exec torre-talent-explorer-app sh
 
 # Laravel
 migrate:
-	docker-compose exec app php artisan migrate
+	docker-compose exec torre-talent-explorer-app php artisan migrate
 
 fresh:
-	docker-compose exec app php artisan migrate:fresh --seed
+	docker-compose exec torre-talent-explorer-app php artisan migrate:fresh --seed
 
 cache:
-	docker-compose exec app php artisan cache:clear
-	docker-compose exec app php artisan config:cache
+	docker-compose exec torre-talent-explorer-app php artisan cache:clear
+	docker-compose exec torre-talent-explorer-app php artisan config:cache
 
 # Prod deployment
 deploy:
-	gcloud run deploy torre-talent-explorer \
+	gcloud run deploy torre-talent-explorer-app \
 		--source . \
 		--region us-central1 \
 		--allow-unauthenticated
