@@ -1,40 +1,62 @@
 services:
-  torre-talent-explorer-app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: torre-talent-explorer-app
-    ports:
-      - "8000:80"
-    environment:
-      - APP_ENV=local
-      - APP_DEBUG=true
-      - DB_CONNECTION=mysql
-      - DB_HOST=db
-      - DB_PORT=3306
-      - DB_DATABASE=laravel
-      - DB_USERNAME=laravel
-      - DB_PASSWORD=secrets
-      - PORT=80
-    depends_on:
-      - db
-    networks:
-      - network
+    torre-talent-explorer-mariadb:
+        build:
+            context: .
+            dockerfile: Dockerfile
+        container_name: torre-talent-explorer-mariadb
+        ports:
+            - "8000:80"
+        environment:
+            - APP_ENV=local
+            - APP_DEBUG=true
+            - DB_CONNECTION=mysql
+            - DB_HOST=torre-talent-mariadb-db
+            - DB_PORT=3306
+            - DB_DATABASE=laravel
+            - DB_USERNAME=laravel
+            - DB_PASSWORD=secrets
+            - PORT=80
+        depends_on:
+            - torre-talent-mariadb-db
+        networks:
+            - network
+        profiles:
+            - mariadb
 
-  db:
-    image: mariadb
-    container_name: torre-talent-explorer-db
-    restart: unless-stopped
-    environment:
-      MYSQL_DATABASE: laravel
-      MYSQL_USER: laravel
-      MYSQL_PASSWORD: secrets
-      MYSQL_ROOT_PASSWORD: root
-    ports:
-      - "3306:3306"
-    networks:
-      - network
+    torre-talent-explorer-sqlite:
+        build:
+            context: .
+            dockerfile: Dockerfile
+        container_name: torre-talent-explorer-sqlite
+        ports:
+            - "8000:80"
+        environment:
+            - APP_ENV=local
+            - APP_DEBUG=true
+            - DB_CONNECTION=sqlite
+            - DB_DATABASE=/app/database/database.sqlite
+            - PORT=80
+        networks:
+            - network
+        profiles:
+            - sqlite
+
+    torre-talent-mariadb-db:
+        image: mariadb
+        container_name: torre-talent-mariadb-db
+        restart: unless-stopped
+        environment:
+            MYSQL_DATABASE: laravel
+            MYSQL_USER: laravel
+            MYSQL_PASSWORD: secrets
+            MYSQL_ROOT_PASSWORD: root
+        ports:
+            - "3306:3306"
+        networks:
+            - network
+        profiles:
+            - mariadb
 
 networks:
-  network:
-    driver: bridge
+    network:
+        driver: bridge

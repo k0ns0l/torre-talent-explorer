@@ -1,33 +1,85 @@
 .PHONY: build up down logs shell migrate fresh deploy cache
+.PHONY: build-mariadb up-mariadb down-mariadb logs-mariadb shell-mariadb migrate-mariadb fresh-mariadb cache-mariadb
+.PHONY: build-sqlite up-sqlite down-sqlite logs-sqlite shell-sqlite migrate-sqlite fresh-sqlite cache-sqlite
 
-# Development
+# Default profile
 build:
-	docker-compose build
+	docker-compose --profile sqlite build
 
 up:
-	docker-compose up -d
+	docker-compose --profile sqlite up -d
 
 down:
-	docker-compose down
+	docker-compose --profile sqlite down
 
 logs:
-	docker-compose logs -f torre-talent-explorer-app
+	docker-compose logs -f torre-talent-explorer-sqlite
 
 shell:
-	docker-compose exec torre-talent-explorer-app sh
+	docker-compose exec torre-talent-explorer-sqlite sh
 
-# Laravel
 migrate:
-	docker-compose exec torre-talent-explorer-app php artisan migrate
+	docker-compose exec torre-talent-explorer-sqlite php artisan migrate
 
 fresh:
-	docker-compose exec torre-talent-explorer-app php artisan migrate:fresh --seed
+	docker-compose exec torre-talent-explorer-sqlite php artisan migrate:fresh --seed
 
 cache:
-	docker-compose exec torre-talent-explorer-app php artisan cache:clear
-	docker-compose exec torre-talent-explorer-app php artisan config:cache
+	docker-compose exec torre-talent-explorer-sqlite php artisan cache:clear
+	docker-compose exec torre-talent-explorer-sqlite php artisan config:cache
 
-# Prod deployment
+# MariaDB
+build-mariadb:
+	docker-compose --profile mariadb build
+
+up-mariadb:
+	docker-compose --profile mariadb up -d
+
+down-mariadb:
+	docker-compose --profile mariadb down
+
+logs-mariadb:
+	docker-compose logs -f torre-talent-explorer-mariadb
+
+shell-mariadb:
+	docker-compose exec torre-talent-explorer-mariadb sh
+
+migrate-mariadb:
+	docker-compose exec torre-talent-explorer-mariadb php artisan migrate
+
+fresh-mariadb:
+	docker-compose exec torre-talent-explorer-mariadb php artisan migrate:fresh --seed
+
+cache-mariadb:
+	docker-compose exec torre-talent-explorer-mariadb php artisan cache:clear
+	docker-compose exec torre-talent-explorer-mariadb php artisan config:cache
+
+# SQLite
+build-sqlite:
+	docker-compose --profile sqlite build
+
+up-sqlite:
+	docker-compose --profile sqlite up -d
+
+down-sqlite:
+	docker-compose --profile sqlite down
+
+logs-sqlite:
+	docker-compose logs -f torre-talent-explorer-sqlite
+
+shell-sqlite:
+	docker-compose exec torre-talent-explorer-sqlite sh
+
+migrate-sqlite:
+	docker-compose exec torre-talent-explorer-sqlite php artisan migrate
+
+fresh-sqlite:
+	docker-compose exec torre-talent-explorer-sqlite php artisan migrate:fresh --seed
+
+cache-sqlite:
+	docker-compose exec torre-talent-explorer-sqlite php artisan cache:clear
+	docker-compose exec torre-talent-explorer-sqlite php artisan config:cache
+
 deploy:
 	gcloud run deploy torre-talent-explorer-app \
 		--source . \
