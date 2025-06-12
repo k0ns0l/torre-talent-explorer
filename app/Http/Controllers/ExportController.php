@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Http;
 
 class ExportController extends Controller
 {
-    public function exportSearchResults(Request $request)
+    public function exportProfiles(Request $request)
     {
         $request->validate([
             'profiles' => 'required|array',
@@ -18,7 +18,7 @@ class ExportController extends Controller
         
         foreach ($request->profiles as $username) {
             try {
-                $response = Http::timeout(30)->get("https://torre.ai/api/bios/{$username}");
+                $response = Http::timeout(30)->get("https://torre.ai/api/genome/bios/{$username}");
                 
                 if ($response->successful()) {
                     $profile = $response->json();

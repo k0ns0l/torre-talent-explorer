@@ -8,239 +8,153 @@ use Illuminate\Support\Facades\Log;
 
 class OpportunityController extends Controller
 {
+    private $torreJobSearchUrl = 'https://search.torre.co/opportunities/_search/';
+    private $defaultPageSize = 50;
+
+
     public function index()
     {
         return view('opportunities.search');
     }
 
-    public function search(Request $request)
-    {
-        $request->validate([
-            'query' => 'nullable|string|max:100',
-            'location' => 'nullable|string|max:100',
-            'remote' => 'nullable|boolean',
-            'skills' => 'nullable|array',
-            'skills.*' => 'string|max:50'
-        ]);
-
-        try {
-            $searchPayload = [
-                'size' => 20,
-                'offset' => 0
-            ];
-
-            // Improved search with better keyword matching
-            if ($request->filled('query')) {
-                $searchQuery = $request->input('query');
-                $searchPayload['query'] = [
-                    'and' => [
-                        [
-                            'or' => [
-                                ['fuzzy' => ['objective' => $searchQuery]],
-                                ['match' => ['objective' => $searchQuery]],
-                                ['wildcard' => ['objective' => "*{$searchQuery}*"]],
-                                ['fuzzy' => ['organizations.name' => $searchQuery]],
-                                ['match' => ['organizations.name' => $searchQuery]]
-                            ]
-                        ]
-                    ]
-                ];
-            }
-
-            // Add location filter
-            if ($request->filled('location')) {
-                $searchPayload['location'] = [
-                    'name' => $request->location
-                ];
-            }
-
-            // Add remote filter
-            if ($request->has('remote')) {
-                $searchPayload['remote'] = $request->boolean('remote');
-            }
-
-            // Add skills filter
-            if ($request->filled('skills')) {
-                $searchPayload['skill'] = array_map(function($skill) {
-                    return ['name' => $skill];
-                }, $request->skills);
-            }
-
-            $response = Http::timeout(30)->post('https://search.torre.co/opportunities/_search', $searchPayload);
-
-            if ($response->successful()) {
-                $data = $response->json();
-                return response()->json([
-                    'success' => true,
-                    'results' => $data['results'] ?? [],
-                    'total' => $data['total'] ?? 0
-                ]);
-            }
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Search failed'
-            ], 500);
-
-        } catch (\Exception $e) {
-            Log::error('Torre Opportunities API error: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Search service unavailable'
-            ], 500);
-        }
-    }
 
     public function show($id)
     {
         try {
-            // Try multiple Torre API endpoints for opportunity details
-            $endpoints = [
-                "https://torre.ai/api/opportunities/{$id}",
-                "https://torre.co/api/opportunities/{$id}",
-                "https://api.torre.co/opportunities/{$id}"
+            $searchPayload = [
+                'query' => [
+                    'id' => $id
+                ],
+                'size' => 1,
+                'offset' => 0
             ];
 
-            $opportunity = null;
-            foreach ($endpoints as $endpoint) {
-                $response = Http::timeout(30)->get($endpoint);
-                if ($response->successful()) {
-                    $opportunity = $response->json();
-                    break;
+            $response = Http::timeout(30)
+                ->withHeaders([
+                    'Content-Type' => 'application/json',
+                    'Accept' => '*/*'
+                ])
+                ->post('https://search.torre.co/opportunities/_search', $searchPayload);
+
+            if ($response->successful()) {
+                $data = $response->json();
+                $results = $data['results'] ?? [];
+
+                if (!empty($results)) {
+                    $opportunity = $results[0];
+                    return view('opportunities.show', compact('opportunity', 'id'));
                 }
             }
 
-            if ($opportunity) {
-                return view('opportunities.show', compact('opportunity', 'id'));
-            }
-
-            // If API fails, create a mock opportunity for demonstration
-            $mockCompanies = ['TechFlow Solutions', 'InnovateHub Inc', 'CodeCraft Studios', 'DataStream Systems', 'CloudBridge Technologies'];
-            $randomCompany = $mockCompanies[array_rand($mockCompanies)];
-            
-            $opportunity = [
+            Log::warning('Torre API opportunity not found', [
                 'id' => $id,
-                'objective' => 'Software Developer Position',
-                'summary' => 'This opportunity is currently not available through the Torre.ai API. This is a demonstration of how the opportunity detail page would look.',
-                'organizations' => [
-                    [
-                        'name' => $randomCompany,
-                        'description' => 'A technology company focused on innovation and cutting-edge solutions.'
-                    ]
-                ],
-                'locations' => [
-                    ['name' => 'Remote']
-                ],
-                'remote' => true,
-                'compensation' => [
-                    'minAmount' => 50000,
-                    'maxAmount' => 80000,
-                    'periodicity' => 'per year'
-                ],
-                'strengths' => [
-                    ['name' => 'JavaScript', 'weight' => 0.9],
-                    ['name' => 'React', 'weight' => 0.8],
-                    ['name' => 'Node.js', 'weight' => 0.7]
-                ],
-                'createdAt' => now()->toISOString(),
-                'externalUrl' => 'https://torre.ai'
-            ];
+                'status' => $response->status(),
+                'response' => $response->body()
+            ]);
 
-            return view('opportunities.show', compact('opportunity', 'id'));
-
+            return redirect()->route('opportunities.search')->with('error', 'Opportunity not found');
         } catch (\Exception $e) {
             Log::error('Torre Opportunity API error: ' . $e->getMessage());
             return redirect()->route('opportunities.search')->with('error', 'Opportunity service unavailable');
         }
     }
 
-    public function getMatches($username)
+    public function search(Request $request)
     {
+        $payload = [
+            "currency" => "USD",
+            "page" => 0,
+            "periodicity" => "hourly",
+            "aggregate" => true,
+        ];
+
+        $payload['size'] = $request->input('size', $this->defaultPageSize);
+
+        if ($request->filled('query')) {
+            $payload['query'] = $request->input('query');
+        }
+
+        if ($request->has('location.term') && !empty($request->input('location.term'))) {
+            $payload['location'] = [
+                'term' => $request->input('location.term')
+            ];
+        }
+
+        if ($request->filled('skills')) {
+            $skills = array_filter(array_map('trim', explode(',', $request->input('skills'))));
+            if (!empty($skills)) {
+                $payload['skill/role'] = [
+                    'text' => implode(' ', $skills),
+                    'experience' => 'potential-to-develop'
+                ];
+            }
+        }
+
+        if ($request->has('remote')) {
+            $payload['remote'] = ['term' => (bool)$request->input('remote')];
+        }
+
         try {
-            // Fix: Use the correct Torre API endpoint for matches
-            $response = Http::timeout(30)->get("https://torre.ai/api/opportunities/_search", [
-                'query' => [
-                    'person' => ['ggId' => $username]
-                ],
-                'limit' => 10
-            ]);
+            $response = Http::timeout(30)->post($this->torreJobSearchUrl, $payload);
+            $data = $response->json();
 
             if ($response->successful()) {
-                $data = $response->json();
                 return response()->json([
                     'success' => true,
-                    'matches' => $data['results'] ?? []
+                    'results' => $data['results'] ?? [],
+                    'total' => $data['total'] ?? 0
                 ]);
+            } else {
+                return response()->json([
+                    'success' => false,
+                    'message' => $data['message'] ?? 'Failed to fetch opportunities from Torre API.'
+                ], $response->status());
             }
-
-            return response()->json([
-                'success' => false,
-                'message' => 'No matches found'
-            ], 404);
-
         } catch (\Exception $e) {
-            Log::error('Torre Matches API error: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'message' => 'Matches service unavailable'
+                'message' => 'An internal server error occurred while searching opportunities.'
             ], 500);
         }
     }
 
-    public function featuredOpportunities()
+    public function featuredOpportunities(Request $request)
     {
+        $payload = [
+            "remote" => ["term" => true],
+            "page" => 0,
+            "aggregate" => true,
+            "sort" => [
+                "field" => "startDate",
+                "direction" => "desc"
+            ]
+        ];
+
+        $payloa21d['size'] = $request->input('size', $this->defaultPageSize);
+        $payload['limit'] = $payload['size'];
+
         try {
-            // Search for popular job types to get diverse opportunities
-            $jobTypes = ['developer', 'designer', 'manager', 'engineer', 'analyst', 'remote'];
-            $allResults = [];
-            
-            foreach ($jobTypes as $type) {
-                $response = Http::timeout(30)->post('https://search.torre.co/opportunities/_search', [
-                    'query' => [
-                        'and' => [
-                            [
-                                'or' => [
-                                    ['fuzzy' => ['objective' => $type]],
-                                    ['match' => ['objective' => $type]]
-                                ]
-                            ]
-                        ]
-                    ],
-                    'size' => 4,
-                    'offset' => 0
+            $response = Http::timeout(30)->post($this->torreJobSearchUrl, $payload);
+            $data = $response->json();
+
+            if ($response->successful()) {
+                return response()->json([
+                    'success' => true,
+                    'results' => $data['results'] ?? [],
+                    'total' => $data['total'] ?? 0
                 ]);
-
-                if ($response->successful()) {
-                    $data = $response->json();
-                    $results = $data['results'] ?? [];
-                    $allResults = array_merge($allResults, $results);
-                }
+            } else {
+                Log::error('Torre API featured error', ['status' => $response->status(), 'response' => $data]);
+                return response()->json([
+                    'success' => false,
+                    'message' => $data['message'] ?? 'Failed to fetch featured opportunities from Torre API.'
+                ], $response->status());
             }
-
-            // Remove duplicates and limit to 20
-            $uniqueResults = [];
-            $seenIds = [];
-            
-            foreach ($allResults as $result) {
-                $id = $result['id'] ?? null;
-                if ($id && !in_array($id, $seenIds)) {
-                    $seenIds[] = $id;
-                    $uniqueResults[] = $result;
-                    if (count($uniqueResults) >= 20) break;
-                }
-            }
-
-            return response()->json([
-                'success' => true,
-                'results' => $uniqueResults,
-                'total' => count($uniqueResults)
-            ]);
-
         } catch (\Exception $e) {
-            Log::error('Torre API featured opportunities error: ' . $e->getMessage());
+            Log::error('Exception during Torre API featured fetch', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
             return response()->json([
                 'success' => false,
-                'message' => 'Featured opportunities unavailable'
+                'message' => 'An internal server error occurred while fetching featured opportunities.'
             ], 500);
         }
     }

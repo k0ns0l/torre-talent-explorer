@@ -18,8 +18,6 @@ class ConnectivityController extends Controller
         try {
             $identifiers = implode(',', $request->identifiers);
             
-            // Since Torre.ai connectivity endpoints may not be working, 
-            // let's create a meaningful analysis based on profile data
             $connectivityData = $this->analyzeProfileConnections($request->identifiers);
 
             return response()->json([
@@ -36,7 +34,7 @@ class ConnectivityController extends Controller
         }
     }
 
-    private function analyzeProfileConnections($identifiers)
+    protected function analyzeProfileConnections($identifiers)
     {
         $profiles = [];
         $allSkills = [];
@@ -46,7 +44,7 @@ class ConnectivityController extends Controller
         // Fetch profile data for each identifier
         foreach ($identifiers as $username) {
             try {
-                $response = Http::timeout(30)->get("https://torre.ai/api/bios/{$username}");
+                $response = Http::timeout(30)->get("https://torre.ai/api/genome/bios/{$username}");
                 
                 if ($response->successful()) {
                     $profile = $response->json();

@@ -18,72 +18,49 @@ class TalentController extends Controller
     public function search(Request $request)
     {
         $request->validate([
-            'query' => 'required|string|min:2|max:100'
+            'query' => 'required|string|max:100',
+            'identityType' => 'nullable|string|in:person,organization'
         ]);
 
+        $results = [];
+        $total = 0;
+        $error = null;
+
         try {
-            // Improved search with better keyword matching
-            $searchQuery = $request->input('query');
-            $response = Http::timeout(30)->post('https://search.torre.co/people/_search', [
-                'query' => [
-                    'and' => [
-                        [
-                            'or' => [
-                                ['fuzzy' => ['name' => $searchQuery]],
-                                ['fuzzy' => ['username' => $searchQuery]],
-                                ['fuzzy' => ['professionalHeadline' => $searchQuery]],
-                                ['match' => ['name' => $searchQuery]],
-                                ['match' => ['professionalHeadline' => $searchQuery]],
-                                ['wildcard' => ['name' => "*{$searchQuery}*"]],
-                                ['wildcard' => ['professionalHeadline' => "*{$searchQuery}*"]]
-                            ]
-                        ]
-                    ]
-                ],
-                'size' => 20,
-                'offset' => 0
-            ]);
+            $payload = [
+                'query' => $request->input('query'),
+                'identityType' => $request->input('identityType', 'person')
+            ];
+
+            $response = Http::timeout(30)
+                ->withHeaders(['Content-Type' => 'application/json'])
+                ->post('http://arda.torre.co/people/_search', $payload);
 
             if ($response->successful()) {
                 $data = $response->json();
                 $results = $data['results'] ?? [];
-                
-                // Track search history if user is authenticated
-                if (Auth::check()) {
-                    SearchHistory::create([
-                        'user_id' => Auth::id(),
-                        'query' => $searchQuery,
-                        'results_count' => count($results),
-                        'ip_address' => $request->ip()
-                    ]);
-                }
-                
-                return response()->json([
-                    'success' => true,
-                    'results' => $results,
-                    'total' => $data['total'] ?? 0
-                ]);
+                $total = $data['total'] ?? 0;
+            } else {
+                $error = 'Search failed';
             }
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Search failed'
-            ], 500);
-
         } catch (\Exception $e) {
             Log::error('Torre API search error: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Search service unavailable'
-            ], 500);
+            $error = 'Search service unavailable';
         }
+
+        return response()->json([
+            'success' => $error === null,
+            'results' => $results,
+            'total' => $total,
+            'message' => $error,
+        ]);
     }
 
     public function profile($username)
     {
         try {
             $endpoints = [
-                "https://torre.ai/api/bios/{$username}",
+                "https://torre.ai/api/genome/bios/{$username}",
             ];
 
             $profile = null;
@@ -98,7 +75,6 @@ class TalentController extends Controller
             if ($profile) {
                 return view('talent.profile', compact('profile', 'username'));
             }
-            
         } catch (\Exception $e) {
             Log::error('Torre API profile error: ' . $e->getMessage());
             return redirect()->route('talent.search')->with('error', 'Profile service unavailable');
@@ -108,7 +84,7 @@ class TalentController extends Controller
     public function profileApi($username)
     {
         try {
-            $response = Http::timeout(30)->get("https://torre.ai/api/bios/{$username}");
+            $response = Http::timeout(30)->get("https://torre.ai/api/genome/bios/{$username}");
 
             if ($response->successful()) {
                 return response()->json([
@@ -121,7 +97,6 @@ class TalentController extends Controller
                 'success' => false,
                 'message' => 'Profile not found'
             ], 404);
-
         } catch (\Exception $e) {
             Log::error('Torre API profile error: ' . $e->getMessage());
             return response()->json([
@@ -137,7 +112,7 @@ class TalentController extends Controller
             // Search for popular tech terms to get diverse profiles
             $searchTerms = ['developer', 'designer', 'manager', 'engineer', 'analyst'];
             $allResults = [];
-            
+
             foreach ($searchTerms as $term) {
                 $response = Http::timeout(30)->post('https://search.torre.co/people/_search', [
                     'query' => [
@@ -164,7 +139,7 @@ class TalentController extends Controller
             // Remove duplicates and limit to 20
             $uniqueResults = [];
             $seenUsernames = [];
-            
+
             foreach ($allResults as $result) {
                 $username = $result['username'] ?? $result['ggId'] ?? null;
                 if ($username && !in_array($username, $seenUsernames)) {
@@ -179,7 +154,6 @@ class TalentController extends Controller
                 'results' => $uniqueResults,
                 'total' => count($uniqueResults)
             ]);
-
         } catch (\Exception $e) {
             Log::error('Torre API featured profiles error: ' . $e->getMessage());
             return response()->json([

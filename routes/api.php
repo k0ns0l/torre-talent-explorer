@@ -15,13 +15,12 @@ Route::get('/user', function (Request $request) {
 
 // Search routes
 Route::post('/search', [TalentController::class, 'search']);
-Route::get('/featured-profiles', [TalentController::class, 'featuredProfiles']);
+Route::post('/search/featured', [TalentController::class, 'featuredProfiles']);
 Route::get('/profile/{username}', [TalentController::class, 'profileApi']);
 
 // Opportunities routes
 Route::post('/opportunities/search', [OpportunityController::class, 'search']);
-Route::get('/opportunities/featured', [OpportunityController::class, 'featuredOpportunities']);
-Route::get('/opportunities/matches/{username}', [OpportunityController::class, 'getMatches']);
+Route::post('/opportunities/featured', [OpportunityController::class, 'featuredOpportunities']);
 
 // Analytics routes
 Route::post('/analytics/skills', [AnalyticsController::class, 'skillAnalysis']);
@@ -31,4 +30,4 @@ Route::post('/analytics/compare', [AnalyticsController::class, 'compareProfiles'
 Route::post('/export/profiles', [ExportController::class, 'exportProfiles']);
 
 // Connectivity routes
-Route::post('/connectivity/analyze', [ConnectivityController::class, 'analyze']);
+Route::post('/connectivity/analyze', [ConnectivityController::class, 'analyzeConnectivity']);

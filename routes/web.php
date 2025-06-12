@@ -4,10 +4,11 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\TalentController;
 use App\Http\Controllers\FavoriteController;
 use App\Http\Controllers\OpportunityController;
+use App\Http\Controllers\HomeController;
 
 require __DIR__ . '/auth.php';
 
-Route::get('/', [TalentController::class, 'index'])->name('home');
+Route::get('/', [HomeController::class, 'index'])->name('home');
 Route::get('/search', [TalentController::class, 'index'])->name('talent.search');
 Route::get('/profile/{username}', [TalentController::class, 'profile'])->name('talent.profile');
 
