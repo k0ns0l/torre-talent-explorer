@@ -4,9 +4,10 @@ sed -i "s,LISTEN_PORT,$PORT,g" /etc/nginx/nginx.conf
 
 cd /app
 
-mkdir -p storage/logs storage/framework/{cache,sessions,views} \
-    bootstrap/cache \
-    database
+mkdir -p storage/logs \
+         storage/framework/{cache/data,sessions,views} \
+         bootstrap/cache \
+         database
 
 if [ "$DB_CONNECTION" = "sqlite" ]; then
     mkdir -p /app/database
