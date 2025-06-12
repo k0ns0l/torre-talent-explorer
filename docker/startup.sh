@@ -16,7 +16,7 @@ if [ "$DB_CONNECTION" = "sqlite" ]; then
     chown -R www-data:www-data /app/database
     chown www-data:www-data /app/database/database.sqlite
     
-    chmod 755 /app/database
+    chmod 775 /app/database
     chmod 664 /app/database/database.sqlite
 fi
 
