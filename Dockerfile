@@ -1,13 +1,16 @@
 FROM php:8.2-fpm-alpine
 
-RUN apk add --no-cache nginx \ 
-    wget nodejs npm mariadb-client \
-    oniguruma-dev
-    
-RUN docker-php-ext-install \
-        pdo \
-        pdo_mysql \
-        mbstring
+# If using docker and mysql, substitute -
+
+# RUN docker-php-ext-install \
+#         pdo \
+#         pdo_mysql \
+#         mbstring
+# RUN apk add --no-cache nginx \ 
+#     wget nodejs npm mariadb-client \
+#     oniguruma-dev
+
+RUN apk add --no-cache nginx wget nodejs npm
 
 RUN mkdir -p /run/nginx
 

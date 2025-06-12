@@ -28,11 +28,14 @@ php artisan route:cache
 php artisan view:cache
 php artisan event:cache
 
-until mysql -h "$DB_HOST" -u "$DB_USERNAME" -p"$DB_PASSWORD" -e "SELECT 1" >/dev/null 2>&1; do
-  echo "⏳ Waiting for DB..."
-  sleep 2
-done
-echo "✅ DB is ready!"
+if [ "$DB_CONNECTION" = "mysql" ]; then
+  until mysql -h "$DB_HOST" -u "$DB_USERNAME" -p"$DB_PASSWORD" -e "SELECT 1" >/dev/null 2>&1; do
+    echo "⏳ Waiting for DB..."
+    sleep 2
+  done
+  echo "✅ DB is ready!"
+fi
+
 php artisan migrate --force
 
 php-fpm -D
